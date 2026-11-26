@@ -97,7 +97,7 @@ public class MainActivity extends Activity {
   if(digits.length()<8||digits.length()>15){Toast.makeText(this,"Введите номер с кодом страны",1).show();return;}
   long m=i.getLongExtra("meeting",0);
   String type=i.getStringExtra("meetingType");if(type==null||type.isEmpty())type="ОРР";
-  String message="Напоминаю!\n*"+fmt(m,"HH:mm")+"* ("+fmt(m,"dd.MM")+")\n"+type+" | "+i.getStringExtra("partner")+" — "+i.getStringExtra("guests");
+  String message="Напоминаю!\n*"+fmt(m,"HH:mm")+"* ("+fmt(m,"d MMMM")+")\n"+type+" | "+i.getStringExtra("partner")+" — "+i.getStringExtra("guests");
   Uri uri=Uri.parse("whatsapp://send?phone="+digits+"&text="+Uri.encode(message));
   String[] packages={"com.whatsapp","com.whatsapp.w4b"};
   for(String pkg:packages){try{startActivity(new Intent(Intent.ACTION_VIEW,uri).setPackage(pkg));return;}catch(ActivityNotFoundException ex){}}
