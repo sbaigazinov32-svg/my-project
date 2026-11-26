@@ -16,6 +16,7 @@ public class AlarmReceiver extends BroadcastReceiver {
  String title=mentor?"Напоминание партнёру":"Моё напоминание";
  Notification n=new Notification.Builder(c,channel).setSmallIcon(android.R.drawable.ic_lock_idle_alarm).setContentTitle(title+" · "+time).setContentText(detail).setStyle(new Notification.BigTextStyle().bigText(detail)).setVisibility(Notification.VISIBILITY_PRIVATE).setCategory(Notification.CATEGORY_ALARM).setPriority(Notification.PRIORITY_MAX).setContentIntent(p).setFullScreenIntent(p,true).setAutoCancel(true).build();
  nm.notify(id,n);
+ if(c.getSystemService(AudioManager.class).getMode()==AudioManager.MODE_IN_COMMUNICATION){playDuringCall(c,s);}
  if(Build.VERSION.SDK_INT>=26&&Settings.canDrawOverlays(c)&&c.getSystemService(PowerManager.class).isInteractive()&&!c.getSystemService(KeyguardManager.class).isKeyguardLocked()){
  final PendingResult result=goAsync(); final Handler h=new Handler(Looper.getMainLooper());
  h.post(()->{WindowManager wm=c.getSystemService(WindowManager.class);LinearLayout box=new LinearLayout(c);box.setOrientation(LinearLayout.VERTICAL);int pad=(int)(16*c.getResources().getDisplayMetrics().density);box.setPadding(pad,pad,pad,pad);
@@ -28,5 +29,24 @@ public class AlarmReceiver extends BroadcastReceiver {
  try{wm.addView(box,lp);h.postDelayed(remove,7000);}catch(Exception ex){remove.run();}
  });
  }
+ }
+ private void playDuringCall(Context c,int stage){
+ final AudioManager am=c.getSystemService(AudioManager.class);
+ final Handler h=new Handler(Looper.getMainLooper());
+ final PendingResult pending=goAsync();
+ MediaPlayer player=null;
+ AudioFocusRequest focus=null;
+ try{
+ AudioAttributes attrs=new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
+ focus=new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).setAudioAttributes(attrs).setOnAudioFocusChangeListener(change->{}).build();
+ am.requestAudioFocus(focus);
+ int raw=c.getResources().getIdentifier("signal"+stage,"raw",c.getPackageName());
+ player=MediaPlayer.create(c,raw,attrs,0);
+ if(player==null)throw new IllegalStateException("No alarm sound");
+ final MediaPlayer mp=player;final AudioFocusRequest req=focus;final boolean[] finished={false};
+ Runnable cleanup=()->{if(finished[0])return;finished[0]=true;try{mp.release();}finally{am.abandonAudioFocusRequest(req);pending.finish();}};
+ mp.setOnCompletionListener(v->cleanup.run());mp.setOnErrorListener((v,w,e)->{cleanup.run();return true;});
+ mp.setVolume(1f,1f);mp.start();h.postDelayed(cleanup,5000);
+ }catch(Exception e){if(player!=null)player.release();if(focus!=null)am.abandonAudioFocusRequest(focus);pending.finish();}
  }
 }
