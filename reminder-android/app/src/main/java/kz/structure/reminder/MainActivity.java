@@ -9,7 +9,7 @@ public class MainActivity extends Activity {
  String fmt(long t,String f){return new SimpleDateFormat(f,new Locale("ru","RU")).format(new Date(t));}
  public void onCreate(Bundle b){super.onCreate(b);if(b!=null&&b.getParcelable("visibleAlarm")!=null){showAlarm((Intent)b.getParcelable("visibleAlarm"));return;}if(getIntent().hasExtra("stage"))showAlarm(getIntent());else home();}
  protected void onNewIntent(Intent i){super.onNewIntent(i);setIntent(i);if(i.hasExtra("stage"))showAlarm(i);else home();}
- void home(){permissionStatus=null;permissionButton=null;visibleAlarm=null;actions=null;if(Build.VERSION.SDK_INT>=27){setShowWhenLocked(false);setTurnScreenOn(false);}getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);base();label("СОЗДАНИЕ СТРУКТУРЫ",22);label("Напоминания о встречах",28);button("Войти и проверить синхронизацию",()->cloudLogin());partner=field("Имя партнёра");guests=field("Гости (по одному на строку)");date=Calendar.getInstance();date.add(Calendar.HOUR,7);time=label(fmt(date.getTimeInMillis(),"dd.MM.yyyy HH:mm"),30);button("Выбрать дату и время",()->new DatePickerDialog(this,(v,y,m,d)->{date.set(y,m,d);new TimePickerDialog(this,(w,h,min)->{date.set(Calendar.HOUR_OF_DAY,h);date.set(Calendar.MINUTE,min);date.set(Calendar.SECOND,0);time.setText(fmt(date.getTimeInMillis(),"dd.MM.yyyy HH:mm"));},date.get(Calendar.HOUR_OF_DAY),date.get(Calendar.MINUTE),true).show();},date.get(Calendar.YEAR),date.get(Calendar.MONTH),date.get(Calendar.DAY_OF_MONTH)).show());permissionPanel();button("Сохранить встречу",()->schedule());button("Тест WhatsApp: напоминание партнёру через 10 секунд",()->testMentor());button("Предпросмотр наставника",()->showAlarm(data(2,date.getTimeInMillis(),900).putExtra("mentor",true)));button("Предпросмотр запроса подтверждения",()->showAlarm(data(2,date.getTimeInMillis(),901).putExtra("mentor",true).putExtra("approval",true)));button("Тест: два коротких через 10 секунд",()->test(6));button("Тест: три коротких через 10 секунд",()->test(2));refreshPermissions();}
+ void home(){permissionStatus=null;permissionButton=null;visibleAlarm=null;actions=null;if(Build.VERSION.SDK_INT>=27){setShowWhenLocked(false);setTurnScreenOn(false);}getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);base();label("СОЗДАНИЕ СТРУКТУРЫ",22);label("Напоминания о встречах",28);button("Войти и проверить синхронизацию",()->cloudLogin());button("Обновить планы сейчас",()->{new Thread(()->{try{String result=CloudSync.run(getApplicationContext(),null);runOnUiThread(()->{if(!isFinishing())new AlertDialog.Builder(this).setTitle("Синхронизация").setMessage(result).setPositiveButton("Закрыть",null).show();});}catch(Exception e){runOnUiThread(()->Toast.makeText(this,"Не удалось обновить. Проверьте интернет или повторите вход.",1).show());}}).start();});partner=field("Имя партнёра");guests=field("Гости (по одному на строку)");date=Calendar.getInstance();date.add(Calendar.HOUR,7);time=label(fmt(date.getTimeInMillis(),"dd.MM.yyyy HH:mm"),30);button("Выбрать дату и время",()->new DatePickerDialog(this,(v,y,m,d)->{date.set(y,m,d);new TimePickerDialog(this,(w,h,min)->{date.set(Calendar.HOUR_OF_DAY,h);date.set(Calendar.MINUTE,min);date.set(Calendar.SECOND,0);time.setText(fmt(date.getTimeInMillis(),"dd.MM.yyyy HH:mm"));},date.get(Calendar.HOUR_OF_DAY),date.get(Calendar.MINUTE),true).show();},date.get(Calendar.YEAR),date.get(Calendar.MONTH),date.get(Calendar.DAY_OF_MONTH)).show());permissionPanel();button("Сохранить встречу",()->schedule());button("Тест WhatsApp: напоминание партнёру через 10 секунд",()->testMentor());button("Предпросмотр наставника",()->showAlarm(data(2,date.getTimeInMillis(),900).putExtra("mentor",true)));button("Предпросмотр запроса подтверждения",()->showAlarm(data(2,date.getTimeInMillis(),901).putExtra("mentor",true).putExtra("approval",true)));button("Тест: два коротких через 10 секунд",()->test(6));button("Тест: три коротких через 10 секунд",()->test(2));refreshPermissions();}
  Intent data(int stage,long meeting,int id){return new Intent(this,AlarmReceiver.class).putExtra("stage",stage).putExtra("meeting",meeting).putExtra("partner",partner.getText().toString()).putExtra("guests",guests.getText().toString()).putExtra("id",id);}
  boolean set(Intent i,long when){AlarmManager a=getSystemService(AlarmManager.class);if(Build.VERSION.SDK_INT>=31&&!a.canScheduleExactAlarms()){Toast.makeText(this,"Разрешите точные будильники",1).show();return false;}PendingIntent p=PendingIntent.getBroadcast(this,i.getIntExtra("id",0),i,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);PendingIntent show=PendingIntent.getActivity(this,i.getIntExtra("id",0),new Intent(this,MainActivity.class).putExtras(i),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);a.setAlarmClock(new AlarmManager.AlarmClockInfo(when,show),p);return true;}
  void test(int stage){set(data(stage,System.currentTimeMillis()+10000+stage*3600000L,stage),System.currentTimeMillis()+10000);}
@@ -132,49 +132,12 @@ public class MainActivity extends Activity {
    new Thread(()->{try{
     org.json.JSONObject body=new org.json.JSONObject().put("email",login+"@networkplan.local").put("password",password);
     org.json.JSONObject session=new org.json.JSONObject(cloudRequest("/auth/v1/token?grant_type=password",null,body));
-    String token=session.getString("access_token"),uid=session.getJSONObject("user").getString("id");
-    if(!uid.matches("[a-fA-F0-9-]{36}"))throw new java.io.IOException("Некорректный ID");
-    String today=new SimpleDateFormat("yyyy-MM-dd",Locale.ROOT).format(new Date());
-    org.json.JSONArray rows=new org.json.JSONArray(cloudRequest("/rest/v1/plans?select=id,action_type,planned_date,planned_time,cancelled_at,superseded_by_plan_id,guest_declined,contacts(full_name)&owner_id=eq."+uid+"&planned_date=gte."+today+"&completed=eq.false&order=planned_date.asc,planned_time.asc&limit=100",token,null));
-    org.json.JSONArray profile=new org.json.JSONArray(cloudRequest("/rest/v1/profiles?select=full_name&id=eq."+uid,token,null)); String name=profile.length()>0?profile.getJSONObject(0).optString("full_name"):"";
-    runOnUiThread(()->{if(!isFinishing())syncPersonal(rows,name);});
+    String result=CloudSync.run(getApplicationContext(),session);
+    runOnUiThread(()->{if(!isFinishing())new AlertDialog.Builder(this).setTitle("Автосинхронизация включена").setMessage(result).setPositiveButton("Закрыть",null).show();});
    }catch(Exception ex){runOnUiThread(()->{if(!isFinishing())new AlertDialog.Builder(this).setTitle("Не удалось подключиться").setMessage("Проверьте ID, пароль и интернет. "+(ex instanceof java.io.IOException?ex.getMessage():"Ошибка обработки ответа")).setPositiveButton("Закрыть",null).show();});}}).start();
   }));dialog.show();
  }
 
 
- void syncPersonal(org.json.JSONArray rows,String name){
-  if(!ready()){new AlertDialog.Builder(this).setMessage("Вход успешен. Активируйте напоминания и повторите синхронизацию.").setPositiveButton("OK",null).show();return;}
-  android.content.SharedPreferences prefs=getPreferences(0);
-  Set<String> old=new HashSet<>(prefs.getStringSet("cloudAlarmIds",Collections.emptySet()));
-  Set<String> next=new HashSet<>();StringBuilder summary=new StringBuilder();int count=0, skipped=0; StringBuilder details=new StringBuilder();
-  SimpleDateFormat parser=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.ROOT);parser.setLenient(false);
-  long now=System.currentTimeMillis();
-  for(int j=0;j<rows.length();j++){try{
-   org.json.JSONObject row=rows.getJSONObject(j);
-   org.json.JSONObject contact=row.optJSONObject("contacts");String guest=contact==null?"":contact.optString("full_name");
-   details.append("\n").append(guest).append(" | ").append(row.optString("action_type")).append(" | ").append(row.optString("planned_date")).append(" ").append(row.optString("planned_time")).append("\n");
-   if(!row.isNull("cancelled_at")||!row.isNull("superseded_by_plan_id")||row.optBoolean("guest_declined")){details.append("Отменён, заменён или отказ гостя\n");skipped++;continue;}
-   String type=row.getString("action_type"),plan=row.getString("id");
-   long meeting=parser.parse(row.getString("planned_date")+" "+row.getString("planned_time").substring(0,8)).getTime();
-   if(meeting<=now){details.append("Время встречи прошло\n");skipped++;continue;}
-   int before=count;
-   boolean call=type.toLowerCase(Locale.ROOT).contains("звон")||type.toLowerCase(Locale.ROOT).contains("сближен");
-   for(int stage:new int[]{6,2}){
-    if(stage==6&&call)continue;
-    long when=meeting-(call?1800000L:stage*3600000L);
-    Calendar cal=Calendar.getInstance();cal.setTimeInMillis(meeting);
-    if(stage==6&&cal.get(Calendar.HOUR_OF_DAY)<14){cal.add(Calendar.DATE,-1);cal.set(Calendar.HOUR_OF_DAY,20);cal.set(Calendar.MINUTE,0);cal.set(Calendar.SECOND,0);cal.set(Calendar.MILLISECOND,0);when=cal.getTimeInMillis();}
-    if(when<=now){details.append("Время сигнала прошло: ").append(fmt(when,"dd.MM HH:mm")).append("\n");continue;}
-    int alarmId=0x40000000|( (plan+":"+stage).hashCode() & 0x3fffffff);
-    Intent i=new Intent(this,AlarmReceiver.class).putExtra("stage",stage).putExtra("meeting",meeting).putExtra("partner",name).putExtra("guests",guest).putExtra("id",alarmId).putExtra("meetingType",type).putExtra("cloudPlan",plan);
-    if(set(i,when)){next.add(Integer.toString(alarmId));count++;details.append("Сигнал установлен: ").append(fmt(when,"dd.MM HH:mm")).append("\n");summary.append(fmt(when,"dd.MM HH:mm")).append(" — ").append(type).append(" · ").append(guest).append("\n");}else details.append("Ошибка установки сигнала\n");
-   }
-   if(count==before)skipped++;
-  }catch(Exception ex){skipped++;details.append("Ошибка обработки плана: ").append(ex.getClass().getSimpleName()).append("\n");}}
-  if(rows.length()<100){old.removeAll(next);for(String s:old){try{PendingIntent pi=PendingIntent.getBroadcast(this,Integer.parseInt(s),new Intent(this,AlarmReceiver.class),PendingIntent.FLAG_NO_CREATE|PendingIntent.FLAG_IMMUTABLE);if(pi!=null){getSystemService(AlarmManager.class).cancel(pi);pi.cancel();}}catch(Exception ignored){}}}else next.addAll(old);
-  prefs.edit().putStringSet("cloudAlarmIds",next).apply();
-  new AlertDialog.Builder(this).setTitle("Установлено сигналов: "+count).setMessage("Получено личных незавершённых планов (до 100): "+rows.length()+"\nПланов без сигналов: "+skipped+"\nВремя синхронизации: "+fmt(now,"dd.MM HH:mm:ss")+"\nЧасовой пояс: "+TimeZone.getDefault().getID()+"\n\nУстановленные сигналы:\n"+summary+"\nВсе полученные планы и причины пропуска:\n"+details).setPositiveButton("Закрыть",null).show();
- }
 
 }
