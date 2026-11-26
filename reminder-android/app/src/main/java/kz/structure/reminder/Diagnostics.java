@@ -23,5 +23,6 @@ final class Diagnostics {
  String s=line(event)+p.getString("events","");
  p.edit().putString("events",s.substring(0,Math.min(s.length(),24000))).apply();
  }
+ static synchronized void clear(Context c){current(c).edit().putString("events",line("Журнал очищен вручную")).commit();}
  static synchronized String read(Context c){return current(c).getString("events","Событий пока нет");}
 }
