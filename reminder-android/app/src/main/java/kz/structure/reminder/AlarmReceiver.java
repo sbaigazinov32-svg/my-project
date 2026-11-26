@@ -7,6 +7,7 @@ public class AlarmReceiver extends BroadcastReceiver {
  String plan=i.getStringExtra("cloudPlan");
  if(plan!=null&&i.getBooleanExtra("snooze",false)){CloudSync.prefs(c).edit().remove("snooze:"+plan+":"+s).remove("snoozeMeeting:"+plan+":"+s).commit();}
  if(plan!=null&&!i.getBooleanExtra("snooze",false)){
+ if(CloudSync.prefs(c).getLong("delivered:"+plan+":"+s,-1)==i.getLongExtra("meeting",0)){Diagnostics.log(c,"Повторный сигнал пропущен: "+id);return;}
  CloudSync.prefs(c).edit().putLong("delivered:"+plan+":"+s,i.getLongExtra("meeting",0)).commit();
  }
  String channel="alarm_v3_"+s;
