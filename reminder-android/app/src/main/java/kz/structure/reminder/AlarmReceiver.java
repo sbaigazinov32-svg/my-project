@@ -4,6 +4,7 @@ public class AlarmReceiver extends BroadcastReceiver {
  public void onReceive(Context c,Intent i){
  int s=i.getIntExtra("stage",2),id=i.getIntExtra("id",0);
  String plan=i.getStringExtra("cloudPlan");
+ if(plan!=null&&i.getBooleanExtra("snooze",false)){CloudSync.prefs(c).edit().remove("snooze:"+plan+":"+s).remove("snoozeMeeting:"+plan+":"+s).commit();}
  if(plan!=null&&!i.getBooleanExtra("snooze",false)){
  CloudSync.prefs(c).edit().putLong("delivered:"+plan+":"+s,i.getLongExtra("meeting",0)).commit();
  }
