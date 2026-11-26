@@ -28,6 +28,7 @@ jobs:
           MANAGER="$(find "$SDK/cmdline-tools" -name sdkmanager -type f | head -n 1)"
           test -n "$MANAGER"
           bash "$MANAGER" --sdk_root="$SDK" 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
       - name: Install Gradle
         run: |
           curl -fsSL --retry 3 https://services.gradle.org/distributions/gradle-8.9-bin.zip -o /tmp/gradle.zip
@@ -49,7 +50,15 @@ jobs:
           test -n "$KEYSTORE_BASE64"
           test -n "$ANDROID_KEYSTORE_PASSWORD"
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
-          /tmp/gradle-8.9/bin/gradle --no-daemon assembleRelease
+          for attempt in 1 2 3; do
+            if /tmp/gradle-8.9/bin/gradle --no-daemon --max-workers=2 assembleRelease > /tmp/reminder-build.log 2>&1; then
+              cat /tmp/reminder-build.log
+              break
+            fi
+            cat /tmp/reminder-build.log
+            if [ "$attempt" = 3 ] || ! grep -Eq '429|Too Many Requests' /tmp/reminder-build.log; then exit 1; fi
+            sleep "$((attempt * 90))"
+          done
           APK=app/build/outputs/apk/release/app-release.apk
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify "$APK"
           cp "$APK" "$RUNNER_TEMP/StructureReminder.apk"
