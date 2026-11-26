@@ -3,6 +3,10 @@ import android.app.*;import android.content.*;import android.media.*;import andr
 public class AlarmReceiver extends BroadcastReceiver {
  public void onReceive(Context c,Intent i){
  int s=i.getIntExtra("stage",2),id=i.getIntExtra("id",0);
+ String plan=i.getStringExtra("cloudPlan");
+ if(plan!=null&&!i.getBooleanExtra("snooze",false)){
+ CloudSync.prefs(c).edit().putLong("delivered:"+plan+":"+s,i.getLongExtra("meeting",0)).commit();
+ }
  String channel="alarm_v3_"+s;
  NotificationManager nm=c.getSystemService(NotificationManager.class);
  NotificationChannel ch=new NotificationChannel(channel,s==6?"За 6 часов":"За 2 часа",NotificationManager.IMPORTANCE_HIGH);
