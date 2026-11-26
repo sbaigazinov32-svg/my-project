@@ -1,7 +1,14 @@
 plugins { id 'com.android.application' }
+def reminderVersion = (System.getenv('REMINDER_VERSION') ?: '2').toInteger()
 android {
  namespace 'kz.structure.reminder'; compileSdk 35
- defaultConfig { applicationId 'kz.structure.reminder'; minSdk 26; targetSdk 35; versionCode (System.getenv('REMINDER_VERSION') ?: '2').toInteger(); versionName "0.2."+versionCode }
+ defaultConfig {
+  applicationId 'kz.structure.reminder'
+  minSdk 26
+  targetSdk 35
+  versionCode = reminderVersion
+  versionName = "0.2.${reminderVersion}"
+ }
  signingConfigs {
   release {
    if (System.getenv('ANDROID_KEYSTORE_PATH')) {
