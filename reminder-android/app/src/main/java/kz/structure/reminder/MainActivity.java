@@ -92,12 +92,18 @@ public class MainActivity extends Activity {
  }
  void launchWhatsApp(Intent i,String phone){
   String digits=phone.replaceAll("[^0-9]","");
+  if(digits.length()==11&&digits.startsWith("8")&&!phone.trim().startsWith("+"))digits="7"+digits.substring(1);
+  if(digits.length()==10&&!phone.trim().startsWith("+"))digits="7"+digits;
   if(digits.length()<8||digits.length()>15){Toast.makeText(this,"Введите номер с кодом страны",1).show();return;}
   long m=i.getLongExtra("meeting",0);
-  String message="Напоминаю о запланированной встрече!\nДата: "+fmt(m,"dd.MM.yyyy")+"\nВремя: "+fmt(m,"HH:mm")+"\nВид встречи: ОРР\nГость: "+i.getStringExtra("guests")+"\nПожалуйста, подтверди готовность к встрече.";
-  Uri uri=Uri.parse("https://wa.me/"+digits+"?text="+Uri.encode(message));
-  Intent chat=new Intent(Intent.ACTION_VIEW,uri).setPackage("com.whatsapp");
-  try{startActivity(chat);}catch(ActivityNotFoundException ex){try{startActivity(new Intent(Intent.ACTION_VIEW,uri).setPackage("com.whatsapp.w4b"));}catch(ActivityNotFoundException ex2){Toast.makeText(this,"WhatsApp не установлен или недоступен",1).show();}}
+  String type=i.getStringExtra("meetingType");if(type==null||type.isEmpty())type="ОРР";
+  String message="Напоминаю!\n*"+fmt(m,"HH:mm")+"* ("+fmt(m,"dd.MM")+")\n"+type+" | "+i.getStringExtra("partner")+" — "+i.getStringExtra("guests");
+  Uri uri=Uri.parse("whatsapp://send?phone="+digits+"&text="+Uri.encode(message));
+  String[] packages={"com.whatsapp","com.whatsapp.w4b"};
+  for(String pkg:packages){try{startActivity(new Intent(Intent.ACTION_VIEW,uri).setPackage(pkg));return;}catch(ActivityNotFoundException ex){}}
+  Uri fallback=Uri.parse("https://wa.me/"+digits+"?text="+Uri.encode(message));
+  for(String pkg:packages){try{startActivity(new Intent(Intent.ACTION_VIEW,fallback).setPackage(pkg));return;}catch(ActivityNotFoundException ex){}}
+  Toast.makeText(this,"WhatsApp не установлен или недоступен",1).show();
  }
  void testMentor(){
   long when=System.currentTimeMillis()+10000L;
