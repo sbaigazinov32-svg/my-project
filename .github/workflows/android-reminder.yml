@@ -6,7 +6,10 @@ on:
       - 'reminder-android/**'
       - '.github/workflows/android-reminder.yml'
 permissions:
-  contents: read
+  contents: write
+concurrency:
+  group: reminder-release
+  cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -32,10 +35,32 @@ jobs:
           echo "/tmp/gradle-8.9/bin" >> "$GITHUB_PATH"
       - run: python3 generate_sounds.py
         working-directory: reminder-android
-      - run: /tmp/gradle-8.9/bin/gradle --no-daemon assembleDebug
+      - name: Build signed APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          REMINDER_VERSION: ${{ github.run_number }}
         working-directory: reminder-android
+        run: |
+          set -eu
+          umask 077
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/structure-reminder.p12"
+          trap 'rm -f "$ANDROID_KEYSTORE_PATH"' EXIT
+          test -n "$KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          /tmp/gradle-8.9/bin/gradle --no-daemon assembleRelease
+          APK=app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify "$APK"
+          cp "$APK" "$RUNNER_TEMP/StructureReminder.apk"
+      - name: Publish signed update
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "reminder-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}" "$RUNNER_TEMP/StructureReminder.apk" --target "$GITHUB_SHA" --title "Structure Reminder ${GITHUB_RUN_NUMBER}" --notes "Signed Android update" --latest
       - uses: actions/upload-artifact@v4
         with:
           name: StructureReminder-APK
-          path: reminder-android/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ runner.temp }}/StructureReminder.apk
           if-no-files-found: error
