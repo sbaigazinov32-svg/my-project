@@ -147,32 +147,36 @@ public class MainActivity extends Activity {
   if(!ready()){new AlertDialog.Builder(this).setMessage("Вход успешен. Активируйте напоминания и повторите синхронизацию.").setPositiveButton("OK",null).show();return;}
   android.content.SharedPreferences prefs=getPreferences(0);
   Set<String> old=new HashSet<>(prefs.getStringSet("cloudAlarmIds",Collections.emptySet()));
-  Set<String> next=new HashSet<>();StringBuilder summary=new StringBuilder();int count=0;
+  Set<String> next=new HashSet<>();StringBuilder summary=new StringBuilder();int count=0, skipped=0; StringBuilder details=new StringBuilder();
   SimpleDateFormat parser=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.ROOT);parser.setLenient(false);
   long now=System.currentTimeMillis();
   for(int j=0;j<rows.length();j++){try{
    org.json.JSONObject row=rows.getJSONObject(j);
-   if(!row.isNull("cancelled_at")||!row.isNull("superseded_by_plan_id")||row.optBoolean("guest_declined"))continue;
+   org.json.JSONObject contact=row.optJSONObject("contacts");String guest=contact==null?"":contact.optString("full_name");
+   details.append("\n").append(guest).append(" | ").append(row.optString("action_type")).append(" | ").append(row.optString("planned_date")).append(" ").append(row.optString("planned_time")).append("\n");
+   if(!row.isNull("cancelled_at")||!row.isNull("superseded_by_plan_id")||row.optBoolean("guest_declined")){details.append("Отменён, заменён или отказ гостя\n");skipped++;continue;}
    String type=row.getString("action_type"),plan=row.getString("id");
    long meeting=parser.parse(row.getString("planned_date")+" "+row.getString("planned_time").substring(0,8)).getTime();
-   if(meeting<=now)continue;
-   org.json.JSONObject contact=row.optJSONObject("contacts");String guest=contact==null?"":contact.optString("full_name");
+   if(meeting<=now){details.append("Время встречи прошло\n");skipped++;continue;}
+   int before=count;
    boolean call=type.toLowerCase(Locale.ROOT).contains("звон")||type.toLowerCase(Locale.ROOT).contains("сближен");
    for(int stage:new int[]{6,2}){
-    if(stage==6&&(call||!row.isNull("first_confirmed_at")))continue;
-    if(stage==2&&!row.isNull("second_confirmed_at"))continue;
+    if(stage==6&&call)continue;
+    if(stage==6&&!row.isNull("first_confirmed_at")){details.append("Первый этап подтверждён\n");continue;}
+    if(stage==2&&!row.isNull("second_confirmed_at")){details.append("Второй этап подтверждён\n");continue;}
     long when=meeting-(call?1800000L:stage*3600000L);
     Calendar cal=Calendar.getInstance();cal.setTimeInMillis(meeting);
     if(stage==6&&cal.get(Calendar.HOUR_OF_DAY)<14){cal.add(Calendar.DATE,-1);cal.set(Calendar.HOUR_OF_DAY,20);cal.set(Calendar.MINUTE,0);cal.set(Calendar.SECOND,0);cal.set(Calendar.MILLISECOND,0);when=cal.getTimeInMillis();}
-    if(when<=now)continue;
+    if(when<=now){details.append("Время сигнала прошло: ").append(fmt(when,"dd.MM HH:mm")).append("\n");continue;}
     int alarmId=0x40000000|( (plan+":"+stage).hashCode() & 0x3fffffff);
     Intent i=new Intent(this,AlarmReceiver.class).putExtra("stage",stage).putExtra("meeting",meeting).putExtra("partner",name).putExtra("guests",guest).putExtra("id",alarmId).putExtra("meetingType",type).putExtra("cloudPlan",plan);
-    if(set(i,when)){next.add(Integer.toString(alarmId));count++;summary.append(fmt(when,"dd.MM HH:mm")).append(" — ").append(type).append(" · ").append(guest).append("\n");}
+    if(set(i,when)){next.add(Integer.toString(alarmId));count++;details.append("Сигнал установлен: ").append(fmt(when,"dd.MM HH:mm")).append("\n");summary.append(fmt(when,"dd.MM HH:mm")).append(" — ").append(type).append(" · ").append(guest).append("\n");}else details.append("Ошибка установки сигнала\n");
    }
-  }catch(Exception ex){summary.append("Один план пропущен: неверные данные или ошибка установки.\n");}}
+   if(count==before)skipped++;
+  }catch(Exception ex){skipped++;details.append("Ошибка обработки плана: ").append(ex.getClass().getSimpleName()).append("\n");}}
   if(rows.length()<100){old.removeAll(next);for(String s:old){try{PendingIntent pi=PendingIntent.getBroadcast(this,Integer.parseInt(s),new Intent(this,AlarmReceiver.class),PendingIntent.FLAG_NO_CREATE|PendingIntent.FLAG_IMMUTABLE);if(pi!=null){getSystemService(AlarmManager.class).cancel(pi);pi.cancel();}}catch(Exception ignored){}}}else next.addAll(old);
   prefs.edit().putStringSet("cloudAlarmIds",next).apply();
-  new AlertDialog.Builder(this).setTitle("Установлено сигналов: "+count).setMessage("Тест личных напоминаний. Время телефона. Подтверждения в базу пока не отправляются.\n\n"+summary).setPositiveButton("Закрыть",null).show();
+  new AlertDialog.Builder(this).setTitle("Установлено сигналов: "+count).setMessage("Получено личных незавершённых планов (до 100): "+rows.length()+"\nПланов без сигналов: "+skipped+"\nВремя синхронизации: "+fmt(now,"dd.MM HH:mm:ss")+"\nЧасовой пояс: "+TimeZone.getDefault().getID()+"\n\nУстановленные сигналы:\n"+summary+"\nВсе полученные планы и причины пропуска:\n"+details).setPositiveButton("Закрыть",null).show();
  }
 
 }
