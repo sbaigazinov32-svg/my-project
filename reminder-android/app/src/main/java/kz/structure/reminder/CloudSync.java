@@ -32,7 +32,7 @@ public class CloudSync extends JobService {
   Set<String> old=new HashSet<>(prefs.getStringSet("cloudAlarmIds",Collections.emptySet()));
   Set<String> next=new HashSet<>();StringBuilder summary=new StringBuilder();int count=0, skipped=0; StringBuilder details=new StringBuilder();
   SimpleDateFormat parser=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.ROOT);parser.setLenient(false);
-  long now=System.currentTimeMillis();
+  long now=System.currentTimeMillis();long catchup=now+3000L;
   for(int j=0;j<rows.length();j++){try{
    org.json.JSONObject row=rows.getJSONObject(j);
    org.json.JSONObject contact=row.optJSONObject("contacts");String guest=contact==null?"":contact.optString("full_name");
@@ -49,7 +49,7 @@ public class CloudSync extends JobService {
     Calendar cal=Calendar.getInstance();cal.setTimeInMillis(meeting);
     if(stage==6&&cal.get(Calendar.HOUR_OF_DAY)<14){cal.add(Calendar.DATE,-1);cal.set(Calendar.HOUR_OF_DAY,20);cal.set(Calendar.MINUTE,0);cal.set(Calendar.SECOND,0);cal.set(Calendar.MILLISECOND,0);when=cal.getTimeInMillis();}
     if(prefs.getLong("delivered:"+plan+":"+stage,-1)==meeting){details.append("Сигнал уже доставлен\n");continue;}
-    if(when<=now){if(stage==6&&meeting-7200000L<=now)continue;when=now+3000L;details.append("Запоздалый сигнал: восстановлен\n");}
+    if(when<=now){if(stage==6&&meeting-7200000L<=now)continue;when=catchup;catchup+=12000L;if(when>=meeting)continue;details.append("Запоздалый сигнал: восстановлен\n");}
     int alarmId=0x40000000|( (plan+":"+stage).hashCode() & 0x3fffffff);
     Intent i=new Intent(ctx,AlarmReceiver.class).putExtra("stage",stage).putExtra("meeting",meeting).putExtra("partner",name).putExtra("guests",guest).putExtra("id",alarmId).putExtra("meetingType",type).putExtra("cloudPlan",plan);
     if(set(i,when)){next.add(Integer.toString(alarmId));count++;details.append("Сигнал установлен: ").append(fmt(when,"dd.MM HH:mm")).append("\n");summary.append(fmt(when,"dd.MM HH:mm")).append(" — ").append(type).append(" · ").append(guest).append("\n");}else details.append("Ошибка установки сигнала\n");
