@@ -161,7 +161,7 @@ public class MainActivity extends Activity {
    for(int stage:new int[]{6,2}){
     if(stage==6&&(call||!row.isNull("first_confirmed_at")))continue;
     if(stage==2&&!row.isNull("second_confirmed_at"))continue;
-    long when=meeting-stage*3600000L;
+    long when=meeting-(call?1800000L:stage*3600000L);
     Calendar cal=Calendar.getInstance();cal.setTimeInMillis(meeting);
     if(stage==6&&cal.get(Calendar.HOUR_OF_DAY)<14){cal.add(Calendar.DATE,-1);cal.set(Calendar.HOUR_OF_DAY,20);cal.set(Calendar.MINUTE,0);cal.set(Calendar.SECOND,0);cal.set(Calendar.MILLISECOND,0);when=cal.getTimeInMillis();}
     if(when<=now)continue;
