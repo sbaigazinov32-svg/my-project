@@ -12,8 +12,8 @@ final class Diagnostics {
  try{
  PackageInfo info=c.getPackageManager().getPackageInfo(c.getPackageName(),0);
  long version=Build.VERSION.SDK_INT>=28?info.getLongVersionCode():info.versionCode;
- if(p.getLong("journalVersion",-1)!=version){
- p.edit().putLong("journalVersion",version).putString("events",line("Журнал очищен. Установлена версия "+version)).commit();
+ if(p.getLong("journalVersion",-1)!=version||p.getLong("journalUpdate",-1)!=info.lastUpdateTime){
+ p.edit().putLong("journalVersion",version).putLong("journalUpdate",info.lastUpdateTime).putString("events",line("Журнал очищен. Установлена версия "+version)).commit();
  }
  }catch(android.content.pm.PackageManager.NameNotFoundException ignored){}
  return p;
@@ -21,7 +21,7 @@ final class Diagnostics {
  static synchronized void log(Context c,String event){
  SharedPreferences p=current(c);
  String s=line(event)+p.getString("events","");
- p.edit().putString("events",s.substring(0,Math.min(s.length(),24000))).apply();
+ p.edit().putString("events",s.substring(0,Math.min(s.length(),12000))).apply();
  }
  static synchronized void clear(Context c){current(c).edit().putString("events",line("Журнал очищен вручную")).commit();}
  static synchronized String read(Context c){return current(c).getString("events","Событий пока нет");}
