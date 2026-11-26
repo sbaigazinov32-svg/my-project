@@ -21,6 +21,7 @@ public class AlarmReceiver extends BroadcastReceiver {
  Notification n=new Notification.Builder(c,channel).setSmallIcon(android.R.drawable.ic_lock_idle_alarm).setContentTitle(title+" · "+time).setContentText(detail).setStyle(new Notification.BigTextStyle().bigText(detail)).setVisibility(Notification.VISIBILITY_PRIVATE).setCategory(Notification.CATEGORY_ALARM).setPriority(Notification.PRIORITY_MAX).setContentIntent(p).setFullScreenIntent(p,true).setAutoCancel(true).build();
  nm.notify(id,n);
  if(c.getSystemService(AudioManager.class).getMode()==AudioManager.MODE_IN_COMMUNICATION){playDuringCall(c,s);}
+ if(Settings.canDrawOverlays(c)&&c.getSystemService(PowerManager.class).isInteractive()&&!c.getSystemService(KeyguardManager.class).isKeyguardLocked()){try{c.startActivity(a);return;}catch(Exception ignored){}}
  if(Build.VERSION.SDK_INT>=26&&Settings.canDrawOverlays(c)&&c.getSystemService(PowerManager.class).isInteractive()&&!c.getSystemService(KeyguardManager.class).isKeyguardLocked()){
  final PendingResult result=goAsync(); final Handler h=new Handler(Looper.getMainLooper());
  h.post(()->{WindowManager wm=c.getSystemService(WindowManager.class);LinearLayout box=new LinearLayout(c);box.setOrientation(LinearLayout.VERTICAL);int pad=(int)(16*c.getResources().getDisplayMetrics().density);box.setPadding(pad,pad,pad,pad);
