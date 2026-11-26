@@ -20,7 +20,7 @@ public class MainActivity extends Activity {
  void centered(String s,int size,int color){TextView t=label(s,size);t.setGravity(17);t.setTypeface(null,1);t.setTextColor(color);}
  void dismissAlarm(Intent i){getSystemService(NotificationManager.class).cancel(i.getIntExtra("id",0));finish();}
  void comment(Intent i){EditText e=new EditText(this);e.setHint("Причина / комментарий");new AlertDialog.Builder(this).setTitle("Закрыть с комментарием").setView(e).setNegativeButton("Отмена",null).setPositiveButton("Сохранить локально",(d,w)->{if(e.getText().toString().trim().isEmpty()){Toast.makeText(this,"Укажите причину",0).show();return;}getPreferences(0).edit().putString("comment_"+i.getIntExtra("id",0),e.getText().toString()).apply();dismissAlarm(i);}).show();}
- void showAlarm(Intent i){visibleAlarm=i;actions=null;if(Build.VERSION.SDK_INT>=27){setShowWhenLocked(true);setTurnScreenOn(true);}else getWindow().addFlags(0x80000|0x200000);getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);base();boolean mentor=i.getBooleanExtra("mentor",false),approval=i.getBooleanExtra("approval",false);styleAlarm(mentor);int gold=mentor?0xffffd58a:0xffb8ddff;long m=i.getLongExtra("meeting",0);String names=shortName(i.getStringExtra("partner"))+" — "+i.getStringExtra("guests");if(approval){centered("Встреча состоялась! Прошу подтверждение?",wide()?22:17,gold);}else{if(!mentor)centered("МОЁ НАПОМИНАНИЕ",22,gold);centered(fmt(m,"HH:mm"),wide()?56:71,Color.WHITE);centered(fmt(m,"d MMMM · EEEE"),27,Color.WHITE);}centered("ОРР  |  "+names,wide()?22:23,gold);if(approval)centered(fmt(m,"d MMMM · EEEE · HH:mm"),22,Color.WHITE);if(mentor){if(approval){action("Подтверждаю",0xff168b40,()->Toast.makeText(this,"Предпросмотр: база не подключена",1).show());action("Отклонить",0xff40444a,()->comment(i));actions=null;action("Закрыть",0xff40444a,()->closeWindow(i));}else{action("Напомнить в WhatsApp",0xff168b40,()->Toast.makeText(this,"Номер партнёра ещё не подключён",1).show());action("Связаться с партнёром",0xff40444a,()->Toast.makeText(this,"Номер партнёра ещё не подключён",1).show());action("Открыть его план",0xff40444a,()->Toast.makeText(this,"Ссылка на план ещё не подключена",1).show());if(wide())actions=null;action("Закрыть",0xff40444a,()->closeOptions(i));}}else{action("Подтвердить встречу",0xff168b40,()->confirmLocal(i));action("Отложить на 10 минут",0xff245a92,()->snoozeWindow(i,10));action("Закрыть с комментарием",0xff40444a,()->comment(i));}}
+ void showAlarm(Intent i){visibleAlarm=i;actions=null;if(Build.VERSION.SDK_INT>=27){setShowWhenLocked(true);setTurnScreenOn(true);}else getWindow().addFlags(0x80000|0x200000);getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);base();boolean mentor=i.getBooleanExtra("mentor",false),approval=i.getBooleanExtra("approval",false);styleAlarm(mentor);int gold=mentor?0xffffd58a:0xffb8ddff;long m=i.getLongExtra("meeting",0);String names=shortName(i.getStringExtra("partner"))+" — "+i.getStringExtra("guests");if(approval){centered("Встреча состоялась! Прошу подтверждение?",wide()?22:17,gold);}else{if(!mentor)centered("МОЁ НАПОМИНАНИЕ",22,gold);centered(fmt(m,"HH:mm"),wide()?56:71,Color.WHITE);centered(fmt(m,"d MMMM · EEEE"),27,Color.WHITE);}centered("ОРР  |  "+names,wide()?22:23,gold);if(approval)centered(fmt(m,"d MMMM · EEEE · HH:mm"),22,Color.WHITE);if(mentor){if(approval){action("Подтверждаю",0xff168b40,()->Toast.makeText(this,"Предпросмотр: база не подключена",1).show());action("Отклонить",0xff40444a,()->comment(i));actions=null;action("Закрыть",0xff40444a,()->closeWindow(i));}else{action("Напомнить в WhatsApp",0xff168b40,()->whatsapp(i));action("Связаться с партнёром",0xff40444a,()->Toast.makeText(this,"Номер партнёра ещё не подключён",1).show());action("Открыть его план",0xff40444a,()->Toast.makeText(this,"Ссылка на план ещё не подключена",1).show());if(wide())actions=null;action("Закрыть",0xff40444a,()->closeOptions(i));}}else{action("Подтвердить встречу",0xff168b40,()->confirmLocal(i));action("Отложить на 10 минут",0xff245a92,()->snoozeWindow(i,10));action("Закрыть с комментарием",0xff40444a,()->comment(i));}}
  int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
  boolean wide(){return getResources().getConfiguration().orientation==2;}
  void styleAlarm(boolean mentor){
@@ -75,5 +75,28 @@ public class MainActivity extends Activity {
   centered("МОЁ НАПОМИНАНИЕ",24,0xffb8ddff);
   centered("Встреча подтверждена",26,0xff69df85);
   new Handler(Looper.getMainLooper()).postDelayed(()->{if(!isFinishing()&&visibleAlarm==i)closeWindow(i);},3000);
+ }
+ void whatsapp(Intent i){
+  Runnable open=()->{
+   String phone=i.getStringExtra("phone");
+   if(phone==null||phone.trim().isEmpty()){
+    EditText field=new EditText(this);field.setInputType(android.text.InputType.TYPE_CLASS_PHONE);field.setHint("+7...");
+    new AlertDialog.Builder(this).setTitle("Тест: номер партнёра").setMessage("До подключения базы введите номер для проверки WhatsApp.").setView(field).setNegativeButton("Отмена",null).setPositiveButton("Открыть WhatsApp",(d,w)->launchWhatsApp(i,field.getText().toString())).show();
+   }else launchWhatsApp(i,phone);
+  };
+  KeyguardManager k=getSystemService(KeyguardManager.class);
+  if(k.isKeyguardLocked()){
+   if(Build.VERSION.SDK_INT>=26)k.requestDismissKeyguard(this,new KeyguardManager.KeyguardDismissCallback(){@Override public void onDismissSucceeded(){runOnUiThread(open);}@Override public void onDismissError(){Toast.makeText(MainActivity.this,"Разблокируйте телефон и повторите",1).show();}});
+   else Toast.makeText(this,"Разблокируйте телефон и повторите",1).show();
+  }else open.run();
+ }
+ void launchWhatsApp(Intent i,String phone){
+  String digits=phone.replaceAll("[^0-9]","");
+  if(digits.length()<8||digits.length()>15){Toast.makeText(this,"Введите номер с кодом страны",1).show();return;}
+  long m=i.getLongExtra("meeting",0);
+  String message="Напоминаю о запланированной встрече!\nДата: "+fmt(m,"dd.MM.yyyy")+"\nВремя: "+fmt(m,"HH:mm")+"\nВид встречи: ОРР\nГость: "+i.getStringExtra("guests")+"\nПожалуйста, подтверди готовность к встрече.";
+  Uri uri=Uri.parse("https://wa.me/"+digits+"?text="+Uri.encode(message));
+  Intent chat=new Intent(Intent.ACTION_VIEW,uri).setPackage("com.whatsapp");
+  try{startActivity(chat);}catch(ActivityNotFoundException ex){try{startActivity(new Intent(Intent.ACTION_VIEW,uri).setPackage("com.whatsapp.w4b"));}catch(ActivityNotFoundException ex2){Toast.makeText(this,"WhatsApp не установлен или недоступен",1).show();}}
  }
 }
