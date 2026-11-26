@@ -135,7 +135,7 @@ public class MainActivity extends Activity {
     String token=session.getString("access_token"),uid=session.getJSONObject("user").getString("id");
     if(!uid.matches("[a-fA-F0-9-]{36}"))throw new java.io.IOException("Некорректный ID");
     String today=new SimpleDateFormat("yyyy-MM-dd",Locale.ROOT).format(new Date());
-    org.json.JSONArray rows=new org.json.JSONArray(cloudRequest("/rest/v1/plans?select=id,action_type,planned_date,planned_time,first_confirmed_at,second_confirmed_at,cancelled_at,superseded_by_plan_id,guest_declined,contacts(full_name)&owner_id=eq."+uid+"&planned_date=gte."+today+"&completed=eq.false&order=planned_date.asc,planned_time.asc&limit=100",token,null));
+    org.json.JSONArray rows=new org.json.JSONArray(cloudRequest("/rest/v1/plans?select=id,action_type,planned_date,planned_time,cancelled_at,superseded_by_plan_id,guest_declined,contacts(full_name)&owner_id=eq."+uid+"&planned_date=gte."+today+"&completed=eq.false&order=planned_date.asc,planned_time.asc&limit=100",token,null));
     org.json.JSONArray profile=new org.json.JSONArray(cloudRequest("/rest/v1/profiles?select=full_name&id=eq."+uid,token,null)); String name=profile.length()>0?profile.getJSONObject(0).optString("full_name"):"";
     runOnUiThread(()->{if(!isFinishing())syncPersonal(rows,name);});
    }catch(Exception ex){runOnUiThread(()->{if(!isFinishing())new AlertDialog.Builder(this).setTitle("Не удалось подключиться").setMessage("Проверьте ID, пароль и интернет. "+(ex instanceof java.io.IOException?ex.getMessage():"Ошибка обработки ответа")).setPositiveButton("Закрыть",null).show();});}}).start();
@@ -162,8 +162,6 @@ public class MainActivity extends Activity {
    boolean call=type.toLowerCase(Locale.ROOT).contains("звон")||type.toLowerCase(Locale.ROOT).contains("сближен");
    for(int stage:new int[]{6,2}){
     if(stage==6&&call)continue;
-    if(stage==6&&!row.isNull("first_confirmed_at")){details.append("Первый этап подтверждён\n");continue;}
-    if(stage==2&&!row.isNull("second_confirmed_at")){details.append("Второй этап подтверждён\n");continue;}
     long when=meeting-(call?1800000L:stage*3600000L);
     Calendar cal=Calendar.getInstance();cal.setTimeInMillis(meeting);
     if(stage==6&&cal.get(Calendar.HOUR_OF_DAY)<14){cal.add(Calendar.DATE,-1);cal.set(Calendar.HOUR_OF_DAY,20);cal.set(Calendar.MINUTE,0);cal.set(Calendar.SECOND,0);cal.set(Calendar.MILLISECOND,0);when=cal.getTimeInMillis();}
