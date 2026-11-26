@@ -23,8 +23,8 @@ public class AlarmReceiver extends BroadcastReceiver {
  Notification n=new Notification.Builder(c,channel).setSmallIcon(android.R.drawable.ic_lock_idle_alarm).setContentTitle(title+" · "+time).setContentText(detail).setStyle(new Notification.BigTextStyle().bigText(detail)).setVisibility(Notification.VISIBILITY_PRIVATE).setCategory(Notification.CATEGORY_ALARM).setPriority(Notification.PRIORITY_MAX).setContentIntent(p).setFullScreenIntent(p,true).setAutoCancel(true).build();
  nm.notify(id,n);Diagnostics.log(c,"Уведомление передано Android");
  if(c.getSystemService(AudioManager.class).getMode()==AudioManager.MODE_IN_COMMUNICATION){playDuringCall(c,s);}
- if(Settings.canDrawOverlays(c)&&c.getSystemService(PowerManager.class).isInteractive()&&!c.getSystemService(KeyguardManager.class).isKeyguardLocked()){try{c.startActivity(a);return;}catch(Exception ignored){}}
- if(Build.VERSION.SDK_INT>=26&&Settings.canDrawOverlays(c)&&c.getSystemService(PowerManager.class).isInteractive()&&!c.getSystemService(KeyguardManager.class).isKeyguardLocked()){
+ if(Settings.canDrawOverlays(c)&&c.getSystemService(PowerManager.class).isInteractive()&&!c.getSystemService(KeyguardManager.class).isKeyguardLocked()){try{c.startActivity(a);Diagnostics.log(c,"Запрошено открытие окна");}catch(Exception ex){Diagnostics.log(c,"Ошибка открытия окна: "+ex.getClass().getSimpleName());}}
+ if(c.getSystemService(AudioManager.class).getMode()!=AudioManager.MODE_IN_COMMUNICATION&&Build.VERSION.SDK_INT>=26&&Settings.canDrawOverlays(c)&&c.getSystemService(PowerManager.class).isInteractive()&&!c.getSystemService(KeyguardManager.class).isKeyguardLocked()){
  final PendingResult result=goAsync(); final Handler h=new Handler(Looper.getMainLooper());
  h.post(()->{WindowManager wm=c.getSystemService(WindowManager.class);LinearLayout box=new LinearLayout(c);box.setOrientation(LinearLayout.VERTICAL);int pad=(int)(16*c.getResources().getDisplayMetrics().density);box.setPadding(pad,pad,pad,pad);
  GradientDrawable bg=new GradientDrawable();bg.setColor(mentor?0xff493322:0xff153653);bg.setCornerRadius(pad);bg.setStroke(2,mentor?0xffffd58a:0xff80c7ff);box.setBackground(bg);
@@ -33,7 +33,7 @@ public class AlarmReceiver extends BroadcastReceiver {
  final boolean[] done={false};Runnable remove=()->{if(done[0])return;done[0]=true;try{wm.removeView(box);}catch(Exception ignored){}result.finish();};
  open.setOnClickListener(v->{remove.run();try{p.send();}catch(PendingIntent.CanceledException ignored){}});close.setOnClickListener(v->remove.run());
  WindowManager.LayoutParams lp=new WindowManager.LayoutParams(-1,-2,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,PixelFormat.TRANSLUCENT);lp.gravity=Gravity.TOP;lp.y=pad;
- try{wm.addView(box,lp);h.postDelayed(remove,7000);}catch(Exception ex){remove.run();}
+ try{wm.addView(box,lp);Diagnostics.log(c,"Резервное окно показано");h.postDelayed(remove,7000);}catch(Exception ex){Diagnostics.log(c,"Ошибка резервного окна: "+ex.getClass().getSimpleName());remove.run();}
  });
  }
  }
