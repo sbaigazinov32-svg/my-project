@@ -19,8 +19,8 @@ public class MainActivity extends Activity {
  void action(String s,int color,Runnable run){Button b=new Button(this);b.setAllCaps(false);b.setText(s);b.setTextSize(18);b.setTextColor(Color.WHITE);android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();bg.setColors(new int[]{color==0xff168b40?0xff39c94e:0xff666970,color});bg.setOrientation(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM);bg.setStroke(dp(1),color==0xff168b40?0xff70e88a:0xffc1b28e);bg.setCornerRadius(dp(14));b.setBackground(bg);if(actions==null){actions=new LinearLayout(this);actions.setOrientation(wide()?0:1);actions.setGravity(17);layout.addView(actions,new LinearLayout.LayoutParams(-1,-2));} LinearLayout.LayoutParams lp=wide()?new LinearLayout.LayoutParams(0,-2,1):new LinearLayout.LayoutParams(-1,-2);lp.setMargins(dp(5),dp(6),dp(5),dp(6));b.setMinHeight(dp(48));b.setTextSize(wide()?15:18);actions.addView(b,lp);b.setOnClickListener(v->run.run());}
  void centered(String s,int size,int color){TextView t=label(s,size);t.setGravity(17);t.setTypeface(null,1);t.setTextColor(color);}
  void dismissAlarm(Intent i){getSystemService(NotificationManager.class).cancel(i.getIntExtra("id",0));finish();}
- void comment(Intent i){EditText e=new EditText(this);e.setHint("Причина / комментарий");new AlertDialog.Builder(this).setTitle("Закрыть с комментарием").setView(e).setNegativeButton("Отмена",null).setPositiveButton("Сохранить локально",(d,w)->{if(e.getText().toString().trim().isEmpty()){Toast.makeText(this,"Укажите причину",0).show();return;}getPreferences(0).edit().putString("comment_"+i.getIntExtra("id",0),e.getText().toString()).apply();dismissAlarm(i);}).show();}
- void showAlarm(Intent i){visibleAlarm=i;actions=null;if(Build.VERSION.SDK_INT>=27){setShowWhenLocked(true);setTurnScreenOn(true);}else getWindow().addFlags(0x80000|0x200000);getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);base();boolean mentor=i.getBooleanExtra("mentor",false),approval=i.getBooleanExtra("approval",false);styleAlarm(mentor);int gold=mentor?0xffffd58a:0xffb8ddff;long m=i.getLongExtra("meeting",0);String names=shortName(i.getStringExtra("partner"))+" — "+i.getStringExtra("guests");if(approval){centered("Встреча состоялась! Прошу подтверждение?",wide()?22:17,gold);}else{if(!mentor)centered("МОЁ НАПОМИНАНИЕ",22,gold);centered(fmt(m,"HH:mm"),wide()?56:71,Color.WHITE);centered(fmt(m,"d MMMM · EEEE"),27,Color.WHITE);}centered("ОРР  |  "+names,wide()?22:23,gold);if(approval)centered(fmt(m,"d MMMM · EEEE · HH:mm"),22,Color.WHITE);if(mentor){if(approval){action("Подтверждаю",0xff168b40,()->Toast.makeText(this,"Предпросмотр: база не подключена",1).show());action("Отклонить",0xff40444a,()->comment(i));actions=null;action("Закрыть",0xff40444a,()->closeWindow(i));}else{action("Напомнить в WhatsApp",0xff168b40,()->whatsapp(i));action("Связаться с партнёром",0xff40444a,()->Toast.makeText(this,"Номер партнёра ещё не подключён",1).show());action("Открыть его план",0xff40444a,()->Toast.makeText(this,"Ссылка на план ещё не подключена",1).show());if(wide())actions=null;action("Закрыть",0xff40444a,()->closeOptions(i));}}else{action("Подтвердить встречу",0xff168b40,()->confirmLocal(i));action("Отложить на 10 минут",0xff245a92,()->snoozeWindow(i,10));action("Закрыть с комментарием",0xff40444a,()->comment(i));}}
+ void comment(Intent i){if(i.hasExtra("cloudPlan")){Toast.makeText(this,"Изменение облачного плана пока не подключено",1).show();return;}EditText e=new EditText(this);e.setHint("Причина / комментарий");new AlertDialog.Builder(this).setTitle("Закрыть с комментарием").setView(e).setNegativeButton("Отмена",null).setPositiveButton("Сохранить локально",(d,w)->{if(e.getText().toString().trim().isEmpty()){Toast.makeText(this,"Укажите причину",0).show();return;}getPreferences(0).edit().putString("comment_"+i.getIntExtra("id",0),e.getText().toString()).apply();dismissAlarm(i);}).show();}
+ void showAlarm(Intent i){visibleAlarm=i;actions=null;if(Build.VERSION.SDK_INT>=27){setShowWhenLocked(true);setTurnScreenOn(true);}else getWindow().addFlags(0x80000|0x200000);getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);base();boolean mentor=i.getBooleanExtra("mentor",false),approval=i.getBooleanExtra("approval",false);styleAlarm(mentor);int gold=mentor?0xffffd58a:0xffb8ddff;long m=i.getLongExtra("meeting",0);String names=shortName(i.getStringExtra("partner"))+" — "+i.getStringExtra("guests");if(approval){centered("Встреча состоялась! Прошу подтверждение?",wide()?22:17,gold);}else{if(!mentor)centered("МОЁ НАПОМИНАНИЕ",22,gold);centered(fmt(m,"HH:mm"),wide()?56:71,Color.WHITE);centered(fmt(m,"d MMMM · EEEE"),27,Color.WHITE);}centered((i.getStringExtra("meetingType")==null?"ОРР":i.getStringExtra("meetingType"))+"  |  "+names,wide()?22:23,gold);if(approval)centered(fmt(m,"d MMMM · EEEE · HH:mm"),22,Color.WHITE);if(mentor){if(approval){action("Подтверждаю",0xff168b40,()->Toast.makeText(this,"Предпросмотр: база не подключена",1).show());action("Отклонить",0xff40444a,()->comment(i));actions=null;action("Закрыть",0xff40444a,()->closeWindow(i));}else{action("Напомнить в WhatsApp",0xff168b40,()->whatsapp(i));action("Связаться с партнёром",0xff40444a,()->Toast.makeText(this,"Номер партнёра ещё не подключён",1).show());action("Открыть его план",0xff40444a,()->Toast.makeText(this,"Ссылка на план ещё не подключена",1).show());if(wide())actions=null;action("Закрыть",0xff40444a,()->closeOptions(i));}}else{action("Подтвердить встречу",0xff168b40,()->confirmLocal(i));action("Отложить на 10 минут",0xff245a92,()->snoozeWindow(i,10));action("Закрыть с комментарием",0xff40444a,()->comment(i));}}
  int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
  boolean wide(){return getResources().getConfiguration().orientation==2;}
  void styleAlarm(boolean mentor){
@@ -66,6 +66,7 @@ public class MainActivity extends Activity {
  @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request==42)new Handler(Looper.getMainLooper()).postDelayed(()->permissionReturned(),350);}
  @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){super.onRequestPermissionsResult(request,permissions,results);if(request==41)permissionReturned();}
  void confirmLocal(Intent i){
+  if(i.hasExtra("cloudPlan")){new AlertDialog.Builder(this).setTitle("Тестовое напоминание").setMessage("Подтверждение в основной программе пока не подключено.").setPositiveButton("Закрыть сигнал",(d,w)->closeWindow(i)).setNegativeButton("Отмена",null).show();return;}
   long meeting=i.getLongExtra("meeting",0);
   String key="confirmed_"+meeting+"_"+i.getStringExtra("partner")+"_"+i.getStringExtra("guests");
   if(!getPreferences(0).edit().putLong(key,System.currentTimeMillis()).commit()){Toast.makeText(this,"Не удалось сохранить подтверждение",1).show();return;}
@@ -134,12 +135,44 @@ public class MainActivity extends Activity {
     String token=session.getString("access_token"),uid=session.getJSONObject("user").getString("id");
     if(!uid.matches("[a-fA-F0-9-]{36}"))throw new java.io.IOException("Некорректный ID");
     String today=new SimpleDateFormat("yyyy-MM-dd",Locale.ROOT).format(new Date());
-    org.json.JSONArray rows=new org.json.JSONArray(cloudRequest("/rest/v1/plans?select=action_type,planned_date,planned_time,contacts(full_name)&owner_id=eq."+uid+"&planned_date=gte."+today+"&completed=eq.false&order=planned_date.asc,planned_time.asc&limit=100",token,null));
-    StringBuilder result=new StringBuilder("Личные незавершённые планы с сегодняшнего дня (до 100): "+rows.length()+"\n\n");
-    for(int j=0;j<rows.length();j++){org.json.JSONObject row=rows.getJSONObject(j),contact=row.optJSONObject("contacts");result.append(row.optString("planned_date")).append(" ").append(row.optString("planned_time")).append(" · ").append(row.optString("action_type")).append(" · ").append(contact==null?"":contact.optString("full_name")).append("\n");}
-    runOnUiThread(()->{if(!isFinishing())new AlertDialog.Builder(this).setTitle("Подключение успешно").setMessage(result.toString()).setPositiveButton("Закрыть",null).show();});
+    org.json.JSONArray rows=new org.json.JSONArray(cloudRequest("/rest/v1/plans?select=id,action_type,planned_date,planned_time,first_confirmed_at,second_confirmed_at,cancelled_at,superseded_by_plan_id,guest_declined,contacts(full_name)&owner_id=eq."+uid+"&planned_date=gte."+today+"&completed=eq.false&order=planned_date.asc,planned_time.asc&limit=100",token,null));
+    org.json.JSONArray profile=new org.json.JSONArray(cloudRequest("/rest/v1/profiles?select=full_name&id=eq."+uid,token,null)); String name=profile.length()>0?profile.getJSONObject(0).optString("full_name"):"";
+    runOnUiThread(()->{if(!isFinishing())syncPersonal(rows,name);});
    }catch(Exception ex){runOnUiThread(()->{if(!isFinishing())new AlertDialog.Builder(this).setTitle("Не удалось подключиться").setMessage("Проверьте ID, пароль и интернет. "+(ex instanceof java.io.IOException?ex.getMessage():"Ошибка обработки ответа")).setPositiveButton("Закрыть",null).show();});}}).start();
   }));dialog.show();
+ }
+
+
+ void syncPersonal(org.json.JSONArray rows,String name){
+  if(!ready()){new AlertDialog.Builder(this).setMessage("Вход успешен. Активируйте напоминания и повторите синхронизацию.").setPositiveButton("OK",null).show();return;}
+  android.content.SharedPreferences prefs=getPreferences(0);
+  Set<String> old=new HashSet<>(prefs.getStringSet("cloudAlarmIds",Collections.emptySet()));
+  Set<String> next=new HashSet<>();StringBuilder summary=new StringBuilder();int count=0;
+  SimpleDateFormat parser=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.ROOT);parser.setLenient(false);
+  long now=System.currentTimeMillis();
+  for(int j=0;j<rows.length();j++){try{
+   org.json.JSONObject row=rows.getJSONObject(j);
+   if(!row.isNull("cancelled_at")||!row.isNull("superseded_by_plan_id")||row.optBoolean("guest_declined"))continue;
+   String type=row.getString("action_type"),plan=row.getString("id");
+   long meeting=parser.parse(row.getString("planned_date")+" "+row.getString("planned_time").substring(0,8)).getTime();
+   if(meeting<=now)continue;
+   org.json.JSONObject contact=row.optJSONObject("contacts");String guest=contact==null?"":contact.optString("full_name");
+   boolean call=type.toLowerCase(Locale.ROOT).contains("звон")||type.toLowerCase(Locale.ROOT).contains("сближен");
+   for(int stage:new int[]{6,2}){
+    if(stage==6&&(call||!row.isNull("first_confirmed_at")))continue;
+    if(stage==2&&!row.isNull("second_confirmed_at"))continue;
+    long when=meeting-stage*3600000L;
+    Calendar cal=Calendar.getInstance();cal.setTimeInMillis(meeting);
+    if(stage==6&&cal.get(Calendar.HOUR_OF_DAY)<14){cal.add(Calendar.DATE,-1);cal.set(Calendar.HOUR_OF_DAY,20);cal.set(Calendar.MINUTE,0);cal.set(Calendar.SECOND,0);cal.set(Calendar.MILLISECOND,0);when=cal.getTimeInMillis();}
+    if(when<=now)continue;
+    int alarmId=0x40000000|( (plan+":"+stage).hashCode() & 0x3fffffff);
+    Intent i=new Intent(this,AlarmReceiver.class).putExtra("stage",stage).putExtra("meeting",meeting).putExtra("partner",name).putExtra("guests",guest).putExtra("id",alarmId).putExtra("meetingType",type).putExtra("cloudPlan",plan);
+    if(set(i,when)){next.add(Integer.toString(alarmId));count++;summary.append(fmt(when,"dd.MM HH:mm")).append(" — ").append(type).append(" · ").append(guest).append("\n");}
+   }
+  }catch(Exception ex){summary.append("Один план пропущен: неверные данные или ошибка установки.\n");}}
+  if(rows.length()<100){old.removeAll(next);for(String s:old){try{PendingIntent pi=PendingIntent.getBroadcast(this,Integer.parseInt(s),new Intent(this,AlarmReceiver.class),PendingIntent.FLAG_NO_CREATE|PendingIntent.FLAG_IMMUTABLE);if(pi!=null){getSystemService(AlarmManager.class).cancel(pi);pi.cancel();}}catch(Exception ignored){}}}else next.addAll(old);
+  prefs.edit().putStringSet("cloudAlarmIds",next).apply();
+  new AlertDialog.Builder(this).setTitle("Установлено сигналов: "+count).setMessage("Тест личных напоминаний. Время телефона. Подтверждения в базу пока не отправляются.\n\n"+summary).setPositiveButton("Закрыть",null).show();
  }
 
 }
