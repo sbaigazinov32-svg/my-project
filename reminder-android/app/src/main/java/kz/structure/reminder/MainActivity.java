@@ -79,7 +79,7 @@ public class MainActivity extends Activity {
  }catch(Exception e){runOnUiThread(()->Toast.makeText(this,"Не удалось проверить обновление. Проверьте интернет.",1).show());}}).start();
  }
  final Handler foregroundSync=new Handler(Looper.getMainLooper());
- final Runnable foregroundTick=new Runnable(){public void run(){if(CloudSync.prefs(MainActivity.this).contains("session")&&ready()&&System.currentTimeMillis()-CloudSync.prefs(MainActivity.this).getLong("lastSync",0)>60000L){new Thread(()->{try{CloudSync.run(getApplicationContext(),null);}catch(Exception e){Diagnostics.log(getApplicationContext(),"Ошибка синхронизации: "+e.getClass().getSimpleName());}}).start();}foregroundSync.postDelayed(this,60000L);}};
+ final Runnable foregroundTick=new Runnable(){public void run(){if(CloudSync.prefs(MainActivity.this).contains("session")&&ready()&&System.currentTimeMillis()-CloudSync.prefs(MainActivity.this).getLong("lastSync",0)>60000L){new Thread(()->{try{CloudSync.autoRun(getApplicationContext());}catch(Exception e){Diagnostics.log(getApplicationContext(),"Ошибка синхронизации: "+e.getClass().getSimpleName());}}).start();}foregroundSync.postDelayed(this,60000L);}};
  @Override protected void onResume(){super.onResume();refreshPermissions();foregroundSync.removeCallbacks(foregroundTick);foregroundSync.post(foregroundTick);}
  @Override protected void onPause(){foregroundSync.removeCallbacks(foregroundTick);if(System.currentTimeMillis()-CloudSync.prefs(this).getLong("lastSync",0)>60000L)CloudSync.requestSoon(this);super.onPause();}
  @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request==42)new Handler(Looper.getMainLooper()).postDelayed(()->permissionReturned(),350);}
