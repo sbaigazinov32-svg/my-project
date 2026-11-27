@@ -24,8 +24,33 @@ public class CloudSync extends JobService {
   }finally{c.disconnect();}
  }
 
+ static synchronized void rememberAlarm(Context c,Intent i,long when){
+ if(!i.hasExtra("cloudPlan"))return;
+ if(!prefs(c).edit().putString("offlineAlarm:"+i.getIntExtra("id",0),when+"|"+i.toUri(Intent.URI_INTENT_SCHEME)).commit())throw new IllegalStateException("Alarm storage");
+ }
+ static synchronized void restoreAlarms(Context c){
+ long now=System.currentTimeMillis(),next=now+3000L;int count=0;
+ SchedulerEngine engine=new SchedulerEngine(c);
+ if(!engine.ready()){Diagnostics.log(c,"Восстановление: нет разрешения точных сигналов");return;}
+ for(java.util.Map.Entry<String,?> e:prefs(c).getAll().entrySet()){
+ if(!e.getKey().startsWith("offlineAlarm:"))continue;
+ try{
+ String raw=(String)e.getValue();int split=raw.indexOf('|');long when=Long.parseLong(raw.substring(0,split));
+ Intent parsed=Intent.parseUri(raw.substring(split+1),Intent.URI_INTENT_SCHEME);
+ Intent i=new Intent(c,AlarmReceiver.class).putExtras(parsed);
+ String plan=i.getStringExtra("cloudPlan");int stage=i.getIntExtra("stage",2);long meeting=i.getLongExtra("meeting",0);
+ boolean snooze=i.getBooleanExtra("snooze",false);
+ if(plan==null||(!snooze&&(meeting<=now||prefs(c).getLong("delivered:"+plan+":"+stage,-1)==meeting||(stage==6&&meeting-7200000L<=now)))){
+ prefs(c).edit().remove(e.getKey()).commit();continue;}
+ if(when<=now){when=next;next+=12000L;}
+ if(!snooze&&when>=meeting){prefs(c).edit().remove(e.getKey()).commit();continue;}
+ if(engine.set(i,when))count++;
+ }catch(Exception ex){Diagnostics.log(c,"Ошибка восстановления сигнала: "+ex.getClass().getSimpleName());}
+ }
+ Diagnostics.log(c,"Автономно восстановлено сигналов: "+count);
+ }
  static class SchedulerEngine extends Engine { SchedulerEngine(Context c){super(c);} 
- boolean set(Intent i,long when){AlarmManager a=ctx.getSystemService(AlarmManager.class);if(Build.VERSION.SDK_INT>=31&&!a.canScheduleExactAlarms()){return false;}PendingIntent p=PendingIntent.getBroadcast(ctx,i.getIntExtra("id",0),i,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);PendingIntent show=PendingIntent.getActivity(ctx,i.getIntExtra("id",0),new Intent(ctx,MainActivity.class).putExtras(i),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);a.setAlarmClock(new AlarmManager.AlarmClockInfo(when,show),p);return true;}
+ boolean set(Intent i,long when){AlarmManager a=ctx.getSystemService(AlarmManager.class);if(Build.VERSION.SDK_INT>=31&&!a.canScheduleExactAlarms()){return false;}PendingIntent p=PendingIntent.getBroadcast(ctx,i.getIntExtra("id",0),i,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);PendingIntent show=PendingIntent.getActivity(ctx,i.getIntExtra("id",0),new Intent(ctx,MainActivity.class).putExtras(i),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);a.setAlarmClock(new AlarmManager.AlarmClockInfo(when,show),p);rememberAlarm(ctx,i,when);return true;}
 
  String syncPersonal(org.json.JSONArray rows,String name){
   if(!ready())throw new IllegalStateException("Разрешения не включены");
@@ -58,7 +83,7 @@ public class CloudSync extends JobService {
    }
    if(count==before)skipped++;
   }catch(Exception ex){skipped++;details.append("Ошибка обработки плана: ").append(ex.getClass().getSimpleName()).append("\n");}}
-  {old.removeAll(next);for(String s:old){try{PendingIntent pi=PendingIntent.getBroadcast(ctx,Integer.parseInt(s),new Intent(ctx,AlarmReceiver.class),PendingIntent.FLAG_NO_CREATE|PendingIntent.FLAG_IMMUTABLE);if(pi!=null){ctx.getSystemService(AlarmManager.class).cancel(pi);pi.cancel();prefs.edit().remove("scheduled:"+s).apply();}}catch(Exception ignored){}}}
+  {old.removeAll(next);for(String s:old){try{PendingIntent pi=PendingIntent.getBroadcast(ctx,Integer.parseInt(s),new Intent(ctx,AlarmReceiver.class),PendingIntent.FLAG_NO_CREATE|PendingIntent.FLAG_IMMUTABLE);if(pi!=null){ctx.getSystemService(AlarmManager.class).cancel(pi);pi.cancel();}prefs.edit().remove("scheduled:"+s).remove("offlineAlarm:"+s).commit();}catch(Exception ignored){}}}
   prefs.edit().putStringSet("cloudAlarmIds",next).apply();
   return "Установлено сигналов: "+count+"\n"+"Получено личных незавершённых планов: "+rows.length()+"\nПланов без сигналов: "+skipped+"\nВремя синхронизации: "+fmt(now,"dd.MM HH:mm:ss")+"\nЧасовой пояс: "+TimeZone.getDefault().getID()+"\n\nУстановленные сигналы:\n"+summary+"\nВсе полученные планы и причины пропуска:\n"+details;
  }
