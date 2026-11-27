@@ -4,6 +4,6 @@ public class BootReceiver extends BroadcastReceiver {
  public void onReceive(Context c,Intent i){
  if(!CloudSync.prefs(c).contains("session"))return;
  CloudSync.restoreAlarms(c);
- try{CloudSync.enable(c);c.getSystemService(JobScheduler.class).schedule(new JobInfo.Builder(732,new ComponentName(c,CloudSync.class)).setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY).setOverrideDeadline(60000L).build());}catch(Exception ex){Diagnostics.log(c,"Ошибка восстановления фоновой синхронизации: "+ex.getClass().getSimpleName());}
+ try{CloudSync.enable(c);c.getSystemService(JobScheduler.class).schedule(new JobInfo.Builder(732,new ComponentName(c,CloudSync.class)).setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY).build());}catch(Exception ex){Diagnostics.log(c,"Ошибка восстановления фоновой синхронизации: "+ex.getClass().getSimpleName());}
  }
 }
