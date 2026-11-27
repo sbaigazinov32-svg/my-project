@@ -22,7 +22,7 @@ public class AlarmReceiver extends BroadcastReceiver {
  boolean mentor=i.getBooleanExtra("mentor",false);
  String title=mentor?"Напоминание партнёру":"Моё напоминание";
  Notification n=new Notification.Builder(c,channel).setSmallIcon(android.R.drawable.ic_lock_idle_alarm).setContentTitle(title+" · "+time).setContentText(detail).setStyle(new Notification.BigTextStyle().bigText(detail)).setVisibility(Notification.VISIBILITY_PRIVATE).setCategory(Notification.CATEGORY_ALARM).setPriority(Notification.PRIORITY_MAX).setContentIntent(p).setFullScreenIntent(p,true).setAutoCancel(true).build();
- nm.notify(id,n);Diagnostics.log(c,"Уведомление передано Android");
+ nm.notify(id,n);if(plan!=null)CloudSync.prefs(c).edit().remove("offlineAlarm:"+id).commit();Diagnostics.log(c,"Уведомление передано Android");
  if(c.getSystemService(AudioManager.class).getMode()==AudioManager.MODE_IN_COMMUNICATION){playDuringCall(c,s);}
  if(Settings.canDrawOverlays(c)&&c.getSystemService(PowerManager.class).isInteractive()&&!c.getSystemService(KeyguardManager.class).isKeyguardLocked()){try{c.startActivity(a);Diagnostics.log(c,"Запрошено открытие окна");}catch(Exception ex){Diagnostics.log(c,"Ошибка открытия окна: "+ex.getClass().getSimpleName());}}
  if(c.getSystemService(AudioManager.class).getMode()!=AudioManager.MODE_IN_COMMUNICATION&&Build.VERSION.SDK_INT>=26&&Settings.canDrawOverlays(c)&&c.getSystemService(PowerManager.class).isInteractive()&&!c.getSystemService(KeyguardManager.class).isKeyguardLocked()){
