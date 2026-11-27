@@ -19,6 +19,13 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Run alarm policy regression tests
+        working-directory: reminder-android
+        run: |
+          set -eu
+          mkdir -p /tmp/alarm-tests
+          javac -d /tmp/alarm-tests app/src/main/java/kz/structure/reminder/AlarmPolicy.java tests/AlarmPolicyTest.java
+          java -cp /tmp/alarm-tests kz.structure.reminder.AlarmPolicyTest
       - name: Prepare Android SDK
         shell: bash
         run: |
