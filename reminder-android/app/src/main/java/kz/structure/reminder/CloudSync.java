@@ -40,7 +40,7 @@ public class CloudSync extends JobService {
  Intent i=new Intent(c,AlarmReceiver.class).putExtras(parsed);
  String plan=i.getStringExtra("cloudPlan");int stage=i.getIntExtra("stage",2);long meeting=i.getLongExtra("meeting",0);
  boolean snooze=i.getBooleanExtra("snooze",false);
- if(plan==null||(!snooze&&(meeting<=now||prefs(c).getLong("delivered:"+plan+":"+stage,-1)==meeting||(stage==6&&meeting-7200000L<=now)))){
+ if(plan==null||!AlarmPolicy.restoreAllowed(meeting,stage,snooze,prefs(c).getLong("delivered:"+plan+":"+stage,-1),now)){
  prefs(c).edit().remove(e.getKey()).commit();continue;}
  if(when<=now){when=next;next+=12000L;}
  if(!snooze&&when>=meeting){prefs(c).edit().remove(e.getKey()).commit();continue;}
@@ -71,9 +71,7 @@ public class CloudSync extends JobService {
    boolean call=type.toLowerCase(Locale.ROOT).contains("звон")||type.toLowerCase(Locale.ROOT).contains("сближен");
    for(int stage:new int[]{6,2}){
     if(stage==6&&call)continue;
-    long when=meeting-(call?1800000L:stage*3600000L);
-    Calendar cal=Calendar.getInstance();cal.setTimeInMillis(meeting);
-    if(stage==6&&cal.get(Calendar.HOUR_OF_DAY)<14){cal.add(Calendar.DATE,-1);cal.set(Calendar.HOUR_OF_DAY,20);cal.set(Calendar.MINUTE,0);cal.set(Calendar.SECOND,0);cal.set(Calendar.MILLISECOND,0);when=cal.getTimeInMillis();}
+    long when=AlarmPolicy.scheduled(meeting,stage,call);
     String sk=plan+":"+stage;long snooze=prefs.getLong("snooze:"+sk,0);boolean deferred=snooze>0&&prefs.getLong("snoozeMeeting:"+sk,-1)==meeting;
     if(!deferred&&prefs.getLong("delivered:"+plan+":"+stage,-1)==meeting){details.append("Сигнал уже доставлен\n");continue;}
     if(deferred){when=Math.max(snooze,catchup);if(snooze<=now)catchup+=12000L;}else if(when<=now){if(stage==6&&meeting-7200000L<=now)continue;long previous=prefs.getLong("catchup:"+sk+":"+meeting,0);when=previous>now?previous:catchup;catchup=Math.max(catchup,when+12000L);if(when>=meeting)continue;prefs.edit().putLong("catchup:"+sk+":"+meeting,when).apply();details.append("Запоздалый сигнал: восстановлен\n");}
